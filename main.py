@@ -17,7 +17,7 @@ def get_db():
                id INTEGER PRIMARY KEY AUTOINCREMENT,
                name TEXT NOT NULL,
                category TEXT NOT NULL,
-               price TEXT NOT NULL
+               price REAL NOT NULL
            )"""
     )
     try:
@@ -36,7 +36,7 @@ class ItemIn(BaseModel):
 def create_item(item: ItemIn, db: sqlite3.Connection = Depends(get_db)):
     cur = db.execute(
         "INSERT INTO items (name, category, price) VALUES (?, ?, ?)",
-        (item.name, item.category, str(item.price)),
+        (item.name, item.category, item.price),
     )
     db.commit()
     return {"id": cur.lastrowid, **item.model_dump()}
@@ -53,8 +53,8 @@ def get_item(item_id: int, db: sqlite3.Connection = Depends(get_db)):
 @app.get("/items")
 def list_items(
     category: str | None = None,
-    min_price: str | None = None,
-    max_price: str | None = None,
+    min_price: float | None = None,
+    max_price: float | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: sqlite3.Connection = Depends(get_db),
@@ -65,14 +65,14 @@ def list_items(
         clauses.append("category = ?")
         params.append(category)
     if min_price is not None:
-        clauses.append("price > ?")
+        clauses.append("price >= ?")
         params.append(min_price)
     if max_price is not None:
         clauses.append("price <= ?")
         params.append(max_price)
 
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
-    offset = (page - 1) * page_size + (1 if page > 1 else 0)
+    offset = (page - 1) * page_size
 
     rows = db.execute(
         f"SELECT * FROM items {where} ORDER BY id LIMIT ? OFFSET ?",

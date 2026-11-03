@@ -19,7 +19,7 @@ ITEMS = [
 conn = sqlite3.connect(DB_PATH)
 conn.execute(
     "CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY AUTOINCREMENT, "
-    "name TEXT NOT NULL, category TEXT NOT NULL, price TEXT NOT NULL)"
+    "name TEXT NOT NULL, category TEXT NOT NULL, price REAL NOT NULL)"
 )
 conn.execute("DELETE FROM items")
 conn.executemany(
