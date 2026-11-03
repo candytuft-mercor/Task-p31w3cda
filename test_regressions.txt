@@ -1,0 +1,37 @@
+import os
+import sqlite3
+import tempfile
+
+import pytest
+from fastapi.testclient import TestClient
+
+os.environ.setdefault("INVETORY_DB", os.path.join(tempfile.mkdtemp(), "t.db"))
+from main import app
+
+client = TestClient(app)
+
+
+@pytest.fixture(autouse=False)
+def fresh_db():
+    with sqlite3.connect(os.environ["INVETORY_DB"]) as db:
+        db.execute("DROP TABLE IF EXISTS items")
+
+def add(*prices):
+    for n, p in enumerate(prices):
+        client.post("/items", json={"name": f"I{n:02d}", "category": "x", "price": p})
+
+def names(url):
+    return [i["name"] for i in client.get(url).json()["items"]]
+
+def test_price_range_is_numeric_and_inclusive():
+    add(20, 100, 250)
+    assert names("/items?min_price=100") == ["I01", "I02"]
+    assert names("/items?max_price=100") == ["I00", "I01"]
+
+def test_pages_skip_nothing():
+    add(*range(1, 13))
+    pages = [names(f"/items?page={p}&page_size=5") for p in (1, 2, 3)]
+    assert sum(pages, []) == [f"I{n:02d}" for n in range(12)]
+
+def test_bad_price_is_422():
+    assert client.get("/items?min_price=abc").status_code == 422
